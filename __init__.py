@@ -11,14 +11,13 @@ class PicFixerSkill(OVOSCommonPlaybackSkill):
 
     def __init__(self):
         super().__init__("PicFixer")
-        self.supported_media = [MediaType.MOVIE, MediaType.GENERIC]
+        self.supported_media = [MediaType.BLACK_WHITE_MOVIE, MediaType.MOVIE, MediaType.GENERIC]
         self.skill_icon = join(dirname(__file__), "ui", "picfixer.png")
         self.archive = IAArchivist("feature_films_picfixer")
 
     def initialize(self):
-        if len(self.archive.db) == 0:
-            # no database, download from url TODO
-            self.archive.archive_collection("feature_films_picfixer")
+        self.archive.bootstrap_from_url(
+            f"https://github.com/OpenJarbas/streamindex/raw/main/{self.archive.db.name}.json")
 
     def normalize_title(self, title):
         title = title.lower().strip()
@@ -53,20 +52,10 @@ class PicFixerSkill(OVOSCommonPlaybackSkill):
         return min(100, score)
 
     def get_playlist(self, score=50):
-        pl = [{
-            "title": video["title"],
-            "image": self.skill_icon,
-            "match_confidence": 70,
-            "media_type": MediaType.MOVIE,
-            "uri": video["streams"][0],  # TODO format selection
-            "playback": PlaybackType.VIDEO,
-            "skill_icon": self.skill_icon,
-            "skill_id": self.skill_id
-        } for _, video in self.archive.db.items() if video.get("streams")]
         return {
             "match_confidence": score,
             "media_type": MediaType.MOVIE,
-            "playlist": pl,
+            "playlist": self.featured_media(),
             "playback": PlaybackType.VIDEO,
             "skill_icon": self.skill_icon,
             "image": self.skill_icon,
@@ -98,7 +87,16 @@ class PicFixerSkill(OVOSCommonPlaybackSkill):
 
     @ocp_featured_media()
     def featured_media(self):
-        return self.get_playlist()['playlist']
+        return  [{
+            "title": video["title"],
+            "image": self.skill_icon,
+            "match_confidence": 70,
+            "media_type": MediaType.MOVIE,
+            "uri": video["streams"][0],  # TODO format selection
+            "playback": PlaybackType.VIDEO,
+            "skill_icon": self.skill_icon,
+            "skill_id": self.skill_id
+        } for _, video in self.archive.db.items() if video.get("streams")]
 
 
 def create_skill():
